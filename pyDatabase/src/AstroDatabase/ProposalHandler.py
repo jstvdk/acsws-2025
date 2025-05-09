@@ -134,7 +134,7 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         Stores raw-image bytes for (proposal_id, target_id).
         Raises ImageAlreadyStoredEx on duplicate or FK error.
         """
-        self._logger.info(f"Storing image for proposal {pid} and target {tid}")
+        self._logger.info(f"Storing image for proposal {pid} and target {tid} that looks like  {image} ")
         try:
             self.cur.execute(
                 """
@@ -147,7 +147,7 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
 
         except Exception as e:
             self._db.rollback()
-            raise SYSTEMErrImpl.ImageAlreadyStoredExImpl()
+            raise SYSTEMErrImpl.ImageAlreadyStoredExImpl(str(e))
 
     def getProposalObservations(self, pid: int) -> TYPES.ImageList:
         """
