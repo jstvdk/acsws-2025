@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS target (
     tid       TEXT     NOT NULL,      -- astronomers identifier
     az            REAL     NOT NULL,
     el            REAL     NOT NULL,
-    exposure_time REAL     NOT NULL,      -- seconds
+    exposure_time INTEGER     NOT NULL,      -- seconds
     UNIQUE (proposal_id, tid)         -- “unique per proposal”
 );
 
@@ -243,9 +243,18 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         self._logger.info(f"Proposal list looks like {proposals}")
         return proposals
 
+    def clean(self) -> None:
+        """
+        Clean all the proposals (and their targets/images via ON DELETE CASCADE).
+        """
+        self._logger.info("Cleaning all proposals from the database")
+        self.cur.execute("DELETE FROM proposal")
+        self._db.commit()
+    
     def cleanUp(self):
         self._logger.info("Cleaning up the database")
         try:
+            self.clean()
             self._db.close()
         except:
             pass
