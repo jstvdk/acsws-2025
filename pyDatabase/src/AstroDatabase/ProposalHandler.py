@@ -75,26 +75,41 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         
         self._logger.info(f"Cursor was initialized inside the execute() method")
 
-    def storeProposal(self, targets):
+    def storeProposal(self, targets: TYPES.TargetList) -> int:
         """
         Create a proposal in status 0 (queued) and its N targets.
         Returns the new proposal ID.
         """
-            
+
         self.cur.execute("BEGIN;")
-        self.cur.execute("INSERT INTO proposal(status) VALUES (?)",
-                    (STATUS_INITIAL_PROPOSAL,))
+        self.cur.execute(
+            "INSERT INTO proposal(status) VALUES (?)",
+            (STATUS_INITIAL_PROPOSAL,)
+        )
         pid = self.cur.lastrowid
 
         self.cur.executemany(
-            "INSERT INTO target(proposal_id, ra, dec, name) "
-            "VALUES (?,?,?,?)",
-            [(pid,
-                t.ra,
-                t.dec,
-                getattr(t, "name", None))            # name may be absent
-                for t in targets]
+            """
+            INSERT INTO target (
+                proposal_id,
+                targ_id,
+                az,
+                el,
+                exposure_time
+            ) VALUES (?,?,?,?,?)
+            """,
+            [
+                (
+                    pid,
+                    t.tid,                     # astronomer‐supplied ID
+                    t.coordinates.az,          # Position.az
+                    t.coordinates.el,          # Position.el
+                    t.expTime                  # exposure time in seconds
+                )
+                for t in targets
+            ]
         )
+
         self._db.commit()
         return pid
 
