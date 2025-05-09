@@ -35,13 +35,13 @@ CREATE TABLE IF NOT EXISTS proposal (
    ------------------------------------------------------------------*/
 CREATE TABLE IF NOT EXISTS target (
     id              INTEGER  PRIMARY KEY AUTOINCREMENT,   -- internal
-    proposal_id     INTEGER  NOT NULL
+    pid    INTEGER  NOT NULL
                            REFERENCES proposal(id) ON DELETE CASCADE,
-    targ_id         TEXT     NOT NULL,    -- astronomer-supplied identifier
-    ra              REAL     NOT NULL,    -- or lon / az, adjust if needed
-    dec             REAL     NOT NULL,    -- or lat / el
+    tid         TEXT     NOT NULL,   
+    az              REAL     NOT NULL,    
+    el             REAL     NOT NULL,    
     exposure_time   REAL     NOT NULL,    -- seconds
-    UNIQUE (proposal_id, targ_id)         -- “unique per proposal”
+    UNIQUE (proposal_id, targ_id)         
 );
 
 /* ------------------------------------------------------------------
@@ -73,56 +73,51 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
 
         self.db_file  = DB_DIR / "proposals.sqlite"
         
-        self._db = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES)
+        self._db   = sqlite3.connect(self.db_file,
+                                    check_same_thread=False)
+        self._db.executescript(SCHEMA_SQL)
+        self._logger.info(f"SQLite initialised at {self.db_file}")
+        
 
 
     def execute(self):
-        with self._lock:
-            self._db   = sqlite3.connect(self.db_file,
-                                        check_same_thread=False)  # <── key change
-            self._lock = threading.Lock()
-            self._db.execute("PRAGMA journal_mode = WAL;")      # better concurrency
-            self._db.execute("PRAGMA synchronous  = NORMAL;")   # good durability/latency trade-off
-            self._db.execute("PRAGMA foreign_keys=ON;")
-            
-            self._db.executescript(SCHEMA_SQL)
-            self._logger.info(f"SQLite initialised at {self.db_file}")
+        self.cur = self._db.cursor()
+        
+        self._logger.info(f"Cursor was initialized inside the execute() method")
 
     def storeProposal(self, targets):
         """
         Create a proposal in status 0 (queued) and its N targets.
         Returns the new proposal ID.
         """
-        with self._lock:
-            cur = self._db.cursor()
-            cur.execute("BEGIN;")
-            cur.execute("INSERT INTO proposal(status) VALUES (?)",
-                        (STATUS_INITIAL_PROPOSAL,))
-            pid = cur.lastrowid
+            
+        self.cur.execute("BEGIN;")
+        self.cur.execute("INSERT INTO proposal(status) VALUES (?)",
+                    (STATUS_INITIAL_PROPOSAL,))
+        pid = self.cur.lastrowid
 
-            cur.executemany(
-                "INSERT INTO target(proposal_id, ra, dec, name) "
-                "VALUES (?,?,?,?)",
-                [(pid,
-                  t.ra,
-                  t.dec,
-                  getattr(t, "name", None))            # name may be absent
-                 for t in targets]
-            )
-            self._db.commit()
+        self.cur.executemany(
+            "INSERT INTO target(proposal_id, ra, dec, name) "
+            "VALUES (?,?,?,?)",
+            [(pid,
+                t.ra,
+                t.dec,
+                getattr(t, "name", None))            # name may be absent
+                for t in targets]
+        )
+        self._db.commit()
         return pid
 
     def getProposalStatus(self, pid: int) -> int:
-        with self._lock:
-            cur = self._db.execute(
-                "SELECT status FROM proposal WHERE id=?", (pid,))
-            row = cur.fetchone()
-            return row[0] if row else STATUS_NO_SUCH_PROPOSAL
+
+        self.cur = self._db.execute(
+            "SELECT status FROM proposal WHERE id=?", (pid,))
+        row = self.cur.fetchone()
+        return row[0] if row else STATUS_NO_SUCH_PROPOSAL
 
     def removeProposal(self, pid: int) -> None:
-        with self._lock:
-            self._db.execute("DELETE FROM proposal WHERE id=?", (pid,))
-            self._db.commit()
+        self._db.execute("DELETE FROM proposal WHERE id=?", (pid,))
+        self._db.commit()
 
     def getProposalObservations(self, pid: int) -> TYPES.ImageList:
         """Returns a list of dummy images for a proposal."""
@@ -141,8 +136,8 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         return None
 
     def cleanUp(self): 
-        with self._lock:
-            try:
-                self._db.close()
-            finally:
-                super().cleanUp()
+
+        try:
+            self._db.close()
+        finally:
+            super().cleanUp()
