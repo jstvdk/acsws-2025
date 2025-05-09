@@ -240,7 +240,7 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
             prop = TYPES.Proposal(pid, targets, status)
             self._logger.info(f"Proposal looks like {prop}")
             proposals.append(prop)
-        
+        self._logger.info(f"Proposal list looks like {proposals}")
         return proposals
 
     def cleanUp(self):
