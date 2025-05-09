@@ -31,22 +31,22 @@ CREATE TABLE IF NOT EXISTS target (
     id            INTEGER  PRIMARY KEY AUTOINCREMENT,
     proposal_id   INTEGER  NOT NULL
                            REFERENCES proposal(id) ON DELETE CASCADE,
-    targ_id       TEXT     NOT NULL,      -- astronomer’s identifier
+    tid       TEXT     NOT NULL,      -- astronomer’s identifier
     az            REAL     NOT NULL,
     el            REAL     NOT NULL,
     exposure_time REAL     NOT NULL,      -- seconds
-    UNIQUE (proposal_id, targ_id)         -- “unique per proposal”
+    UNIQUE (proposal_id, tid)         -- “unique per proposal”
 );
 
 /* ---------- image (one per target, after obs) ---------- */
 CREATE TABLE IF NOT EXISTS image (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     proposal_id INTEGER NOT NULL REFERENCES proposal(id) ON DELETE CASCADE,
-    target_id   INTEGER NOT NULL REFERENCES target(id)   ON DELETE CASCADE,
+    tid   INTEGER NOT NULL REFERENCES target(id)   ON DELETE CASCADE,
     file_uri    TEXT    NOT NULL,
     captured_at DATETIME NOT NULL DEFAULT (datetime('now')),
     meta_json   TEXT,
-    UNIQUE (proposal_id, target_id)
+    UNIQUE (proposal_id, tid)
 );
 """
 
@@ -92,7 +92,7 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
             """
             INSERT INTO target (
                 proposal_id,
-                targ_id,
+                tid,
                 az,
                 el,
                 exposure_time
