@@ -238,6 +238,7 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
                 targets.append(tgt)
 
             prop = TYPES.Proposal(pid, targets, status)
+            self._logger.info(f"Proposal looks like {prop}")
             proposals.append(prop)
         
         return proposals
