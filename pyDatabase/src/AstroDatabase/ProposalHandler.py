@@ -135,19 +135,20 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         Raises ImageAlreadyStoredEx on duplicate or FK error.
         """
         self._logger.info(f"Storing image for proposal {pid} and target {tid} that looks like  {image} ")
+        self._logger.info(f"Image size is {len(image)} bytes and its type is {type(image)}")
         try:
             self.cur.execute(
                 """
                 INSERT INTO image (proposal_id, target_id, image_array)
                 VALUES (?,?,?)
                 """,
-                (pid, tid, sqlite3.Binary(image))
+                (pid, tid, image)
             )
             self._db.commit()
 
         except Exception as e:
             self._db.rollback()
-            raise SYSTEMErrImpl.ImageAlreadyStoredExImpl(str(e))
+            raise SYSTEMErrImpl.ImageAlreadyStoredExImpl()
 
     def getProposalObservations(self, pid: int) -> TYPES.ImageList:
         """
