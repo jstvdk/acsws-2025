@@ -45,8 +45,8 @@ CREATE TABLE IF NOT EXISTS image (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     proposal_id  INTEGER NOT NULL
                   REFERENCES proposal(id) ON DELETE CASCADE,
-    target_id    INTEGER NOT NULL
-                  REFERENCES target(id)   ON DELETE CASCADE,
+    target_id    TEXT    NOT NULL
+                  REFERENCES target(tid)   ON DELETE CASCADE,
     image_array   BLOB    NOT NULL,              -- raw image bytes
     UNIQUE (proposal_id, target_id)
 );
