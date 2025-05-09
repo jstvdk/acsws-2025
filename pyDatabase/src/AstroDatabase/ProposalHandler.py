@@ -1,10 +1,8 @@
 import sqlite3
 from pathlib import Path
-import threading
 import TYPES
 import SYSTEMErrImpl
-import datetime
-
+import os 
 import DATABASE_MODULE__POA      # IDL stubs
 from Acspy.Servants.ACSComponent import ACSComponent
 from Acspy.Servants.ContainerServices import ContainerServices
@@ -31,7 +29,7 @@ CREATE TABLE IF NOT EXISTS target (
     id            INTEGER  PRIMARY KEY AUTOINCREMENT,
     proposal_id   INTEGER  NOT NULL
                            REFERENCES proposal(id) ON DELETE CASCADE,
-    tid       TEXT     NOT NULL,      -- astronomer’s identifier
+    tid       TEXT     NOT NULL,      -- astronomers identifier
     az            REAL     NOT NULL,
     el            REAL     NOT NULL,
     exposure_time REAL     NOT NULL,      -- seconds
@@ -77,44 +75,44 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
 
     def storeProposal(self, targets: TYPES.TargetList) -> int:
         """
-        Create a proposal in status 0 (queued) and its N targets.
-        Returns the new proposal ID.
+        Create a proposal in status 0 and its N targets;
+        always commit on success, rollback on any exception.
         """
+        cur = self._db.cursor()
+        try:
 
-        self.cur.execute("BEGIN;")
-        self.cur.execute(
-            "INSERT INTO proposal(status) VALUES (?)",
-            (STATUS_INITIAL_PROPOSAL,)
-        )
-        pid = self.cur.lastrowid
+            cur.execute(
+                "INSERT INTO proposal(status) VALUES (?)",
+                (STATUS_INITIAL_PROPOSAL,)
+            )
+            pid = cur.lastrowid
 
-        self.cur.executemany(
-            """
-            INSERT INTO target (
-                proposal_id,
-                tid,
-                az,
-                el,
-                exposure_time
-            ) VALUES (?,?,?,?,?)
-            """,
-            [
-                (
-                    pid,
-                    t.tid,                     # astronomer‐supplied ID
-                    t.coordinates.az,          # Position.az
-                    t.coordinates.el,          # Position.el
-                    t.expTime                  # exposure time in seconds
-                )
-                for t in targets
-            ]
-        )
+            cur.executemany(
+                """
+                INSERT INTO target (proposal_id, tid, az, el, exposure_time)
+                VALUES (?,?,?,?,?)
+                """,
+                [
+                    (
+                        pid,
+                        t.tid,
+                        t.coordinates.az,
+                        t.coordinates.el,
+                        t.expTime
+                    )
+                    for t in targets
+                ]
+            )
 
-        self._db.commit()
-        return pid
+            self._db.commit()
+            return pid
 
+        except Exception as e:
+            self._db.rollback()
+            self._logger.error("Error with inserting proposal and targets")
+            raise SYSTEMErrImpl.InvalidProposalStatusTransitionImpl()
+    
     def getProposalStatus(self, pid: int) -> int:
-
         self.cur = self._db.execute(
             "SELECT status FROM proposal WHERE id=?", (pid,))
         row = self.cur.fetchone()
@@ -140,9 +138,13 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         """Stores an image for a proposal and target. Dummy implementation does nothing."""
         return None
 
-    def cleanUp(self): 
-
+    def cleanUp(self):
         try:
             self._db.close()
-        finally:
-            super().cleanUp()
+        except:
+            pass
+        try:
+            os.remove(self.db_file)
+        except FileNotFoundError:
+            pass
+        super().cleanUp()
