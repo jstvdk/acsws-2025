@@ -115,7 +115,7 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         except Exception as e:
             self._db.rollback()
             self._logger.error("Error with inserting proposal and targets")
-            raise SYSTEMErrImpl.InvalidProposalStatusTransitionImpl()
+            raise SYSTEMErrImpl.InvalidProposalStatusTransitionExImpl()
 
 
     def getProposalStatus(self, pid: int) -> int:
@@ -238,8 +238,9 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
                 targets.append(tgt)
 
             prop = TYPES.Proposal(pid, targets, status)
+            self._logger.info(f"Proposal looks like {prop}")
             proposals.append(prop)
-        
+        self._logger.info(f"Proposal list looks like {proposals}")
         return proposals
 
     def cleanUp(self):
