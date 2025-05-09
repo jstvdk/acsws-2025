@@ -208,20 +208,39 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
 
     def getProposals(self) -> list:
         """
-        Return a ProposalList of all proposals in the “queued” state (status = 0).
-        If none are queued, returns an empty ProposalList.
+        Return a list of Proposal structs for all proposals in the queued state (status = 0).
+        If none are queued, returns an empty list.
         """
         self._logger.info("Getting all proposals in the queued state")
+        
         self.cur.execute(
-            "SELECT id FROM proposal WHERE status = ? ORDER BY id",
+            "SELECT id, status FROM proposal WHERE status = ? ORDER BY id",
             (STATUS_QUEUED_PROPOSAL,)
         )
-        rows = self.cur.fetchall()  # list of 1-tuples like [(1,), (5,), ...]
-        prop_list = []
-        for pid, in rows:
+        proposals: list = []
+        
+        for pid, status in self.cur.fetchall():
             self._logger.info(f"Found queued proposal {pid}")
-            prop_list.append(pid)
-        return prop_list
+            
+            self.cur.execute(
+                """
+                SELECT id, az, el, exposure_time
+                FROM target
+                WHERE proposal_id = ?
+                ORDER BY id
+                """,
+                (pid,)
+            )
+            targets = []
+            for tid, az, el, exp_time in self.cur.fetchall():
+                pos = TYPES.Position(az, el)
+                tgt = TYPES.Target(tid, pos, exp_time)
+                targets.append(tgt)
+
+            prop = TYPES.Proposal(pid, targets, status)
+            proposals.append(prop)
+        
+        return proposals
 
     def cleanUp(self):
         self._logger.info("Cleaning up the database")
