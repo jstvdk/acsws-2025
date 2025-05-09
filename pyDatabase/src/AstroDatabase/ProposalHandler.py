@@ -135,19 +135,20 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         Raises ImageAlreadyStoredEx on duplicate or FK error.
         """
         self._logger.info(f"Storing image for proposal {pid} and target {tid} that looks like  {image} ")
+        self._logger.info(f"Image size is {len(image)} bytes and its type is {type(image)}")
         try:
             self.cur.execute(
                 """
                 INSERT INTO image (proposal_id, target_id, image_array)
                 VALUES (?,?,?)
                 """,
-                (pid, tid, sqlite3.Binary(image))
+                (pid, tid, image)
             )
             self._db.commit()
 
         except Exception as e:
             self._db.rollback()
-            raise SYSTEMErrImpl.ImageAlreadyStoredExImpl(str(e))
+            raise SYSTEMErrImpl.ImageAlreadyStoredExImpl()
 
     def getProposalObservations(self, pid: int) -> TYPES.ImageList:
         """
@@ -161,13 +162,16 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
             "SELECT image_array FROM image WHERE proposal_id = ? ORDER BY id",
             (pid,)
         )
-        rows = self.cur.fetchall()  # list of (bytes,) tuples
-
-        img_list = TYPES.ImageList()
-        img_list.length(len(rows))
-        for i, (blob,) in enumerate(rows):
-            img_list[i] = blob
-
+        rows = self.cur.fetchall()
+        self._logger.info(f"Found {len(rows)} images for proposal {pid}")
+        self._logger.info(f"Rows look like {rows}")
+        img_list: list = []
+        for (blob,) in rows:
+            self._logger.info(f"Image blob size is {len(blob)} bytes")
+            img_list.append(blob)
+        
+        self._logger.info(f"Image list size is {len(img_list)}")
+        self._logger.info(f"Image list looks like {img_list}")
         return img_list
 
     def setProposalStatus(self, pid: int, status: int) -> None:
