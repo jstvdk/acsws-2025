@@ -143,8 +143,4 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
             self._db.close()
         except:
             pass
-        try:
-            os.remove(self.db_file)
-        except FileNotFoundError:
-            pass
         super().cleanUp()
