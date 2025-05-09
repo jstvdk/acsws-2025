@@ -1,5 +1,7 @@
 import sqlite3
 from pathlib import Path
+import threading
+import TYPES
 
 import DATABASE_MODULE__POA      # IDL stubs
 from Acspy.Servants.ACSComponent import ACSComponent
@@ -54,15 +56,22 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
 
         self._logger = self.getLogger()
 
-        self.db_file  = DB_DIR / "proposals.sqlite"   # ./data/proposals.sqlite
-
-        self._db = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES)
-        self._db.execute("PRAGMA journal_mode = WAL;")      # better concurrency
-        self._db.execute("PRAGMA synchronous  = NORMAL;")   # good durability/latency trade-off
-        self._db.execute("PRAGMA foreign_keys=ON;")
+        self.db_file  = DB_DIR / "proposals.sqlite"
         
-        self._db.executescript(SCHEMA_SQL)
-        self._logger.info(f"SQLite initialised at {self.db_file}")
+        self._db = sqlite3.connect(self.db_file, detect_types=sqlite3.PARSE_DECLTYPES)
+
+
+    def execute(self):
+        with self._lock:
+            self._db   = sqlite3.connect(self.db_file,
+                                        check_same_thread=False)  # <── key change
+            self._lock = threading.Lock()
+            self._db.execute("PRAGMA journal_mode = WAL;")      # better concurrency
+            self._db.execute("PRAGMA synchronous  = NORMAL;")   # good durability/latency trade-off
+            self._db.execute("PRAGMA foreign_keys=ON;")
+            
+            self._db.executescript(SCHEMA_SQL)
+            self._logger.info(f"SQLite initialised at {self.db_file}")
 
     def storeProposal(self, targets):
         """
@@ -110,8 +119,9 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         """Cleans up the database. Dummy implementation does nothing."""
         pass
 
-    def cleanUp(self):              # called by ACS when the component dies
-        try:
-            self._db.close()
-        finally:
-            super().cleanUp()
+    def cleanUp(self): 
+        with self._lock:
+            try:
+                self._db.close()
+            finally:
+                super().cleanUp()
