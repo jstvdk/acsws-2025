@@ -147,7 +147,7 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
 
         except Exception as e:
             self._db.rollback()
-            raise SYSTEMErrImpl.ImageAlreadyStoredEx(str(e))
+            raise SYSTEMErrImpl.ImageAlreadyStoredExImpl()
 
     def getProposalObservations(self, pid: int) -> TYPES.ImageList:
         """
