@@ -20,43 +20,33 @@ STATUS_NO_SUCH_PROPOSAL = -999
 SCHEMA_SQL = """
 PRAGMA foreign_keys = ON;
 
-/* ------------------------------------------------------------------
-   proposal
-   ------------------------------------------------------------------*/
+/* ---------- proposal ---------- */
 CREATE TABLE IF NOT EXISTS proposal (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    status      INTEGER NOT NULL,                         -- 0/1/2
-    created_at  DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at  DATETIME NOT NULL DEFAULT (datetime('now'))
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    status INTEGER NOT NULL              -- 0 = queued, 1 = running, 2 = ready
 );
 
-/* ------------------------------------------------------------------
-   target  (belongs to one proposal)
-   ------------------------------------------------------------------*/
+/* ---------- target (many per proposal) ---------- */
 CREATE TABLE IF NOT EXISTS target (
-    id              INTEGER  PRIMARY KEY AUTOINCREMENT,   -- internal
-    pid    INTEGER  NOT NULL
+    id            INTEGER  PRIMARY KEY AUTOINCREMENT,
+    proposal_id   INTEGER  NOT NULL
                            REFERENCES proposal(id) ON DELETE CASCADE,
-    tid         TEXT     NOT NULL,   
-    az              REAL     NOT NULL,    
-    el             REAL     NOT NULL,    
-    exposure_time   REAL     NOT NULL,    -- seconds
-    UNIQUE (proposal_id, targ_id)         
+    targ_id       TEXT     NOT NULL,      -- astronomer’s identifier
+    az            REAL     NOT NULL,
+    el            REAL     NOT NULL,
+    exposure_time REAL     NOT NULL,      -- seconds
+    UNIQUE (proposal_id, targ_id)         -- “unique per proposal”
 );
 
-/* ------------------------------------------------------------------
-   image  (one per target in a proposal, after obs is ready)
-   ------------------------------------------------------------------*/
+/* ---------- image (one per target, after obs) ---------- */
 CREATE TABLE IF NOT EXISTS image (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    proposal_id INTEGER NOT NULL
-                           REFERENCES proposal(id) ON DELETE CASCADE,
-    target_id   INTEGER NOT NULL
-                           REFERENCES target(id)   ON DELETE CASCADE,
+    proposal_id INTEGER NOT NULL REFERENCES proposal(id) ON DELETE CASCADE,
+    target_id   INTEGER NOT NULL REFERENCES target(id)   ON DELETE CASCADE,
     file_uri    TEXT    NOT NULL,
     captured_at DATETIME NOT NULL DEFAULT (datetime('now')),
     meta_json   TEXT,
-    UNIQUE (proposal_id, target_id)       -- raises duplicate error itself
+    UNIQUE (proposal_id, target_id)
 );
 """
 
