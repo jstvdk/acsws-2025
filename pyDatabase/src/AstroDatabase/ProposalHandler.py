@@ -173,8 +173,10 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
     def setProposalStatus(self, pid: int, status: int) -> None:
         """
         Set the proposal status, allowing only:
-          0 (queued)  → 1 (running)
-          1 (running) → 2 (ready)
+        -1 (initial) → 0 (queued)
+        0 (queued)  → 1 (running)
+        1 (running) → 2 (ready)
+
         Raises InvalidProposalStatusTransitionEx otherwise.
         """
 
@@ -187,14 +189,19 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
             raise SYSTEMErrImpl.InvalidProposalStatusTransitionExImpl(
                 f"No proposal with id={pid}"
             )
+
         current = row[0]
 
-        if not ((current == 0 and status == 1) or
-                (current == 1 and status == 2)):
+        if not ((current == -1 and status == 0) or
+                (current == 0  and status == 1) or
+                (current == 1  and status == 2)):
             raise SYSTEMErrImpl.InvalidProposalStatusTransitionExImpl(
                 f"Cannot change status from {current} to {status}"
             )
-        self._logger.info(f"The status of the proposal {pid} is changed from {current} to {status}")
+
+        self._logger.info(
+            f"The status of the proposal {pid} is changed from {current} to {status}"
+        )
         self.cur.execute(
             "UPDATE proposal SET status = ? WHERE id = ?",
             (status, pid)
