@@ -195,9 +195,7 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         if not ((current == -1 and status == 0) or
                 (current == 0  and status == 1) or
                 (current == 1  and status == 2)):
-            raise SYSTEMErrImpl.InvalidProposalStatusTransitionExImpl(
-                f"Cannot change status from {current} to {status}"
-            )
+            raise SYSTEMErrImpl.InvalidProposalStatusTransitionExImpl()
 
         self._logger.info(
             f"The status of the proposal {pid} is changed from {current} to {status}"
@@ -208,7 +206,7 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
         )
         self._db.commit()
 
-    def getProposals(self) -> TYPES.ProposalList:
+    def getProposals(self) -> list:
         """
         Return a ProposalList of all proposals in the “queued” state (status = 0).
         If none are queued, returns an empty ProposalList.
@@ -219,12 +217,10 @@ class ProposalHandler(DATABASE_MODULE__POA.DataBase,
             (STATUS_QUEUED_PROPOSAL,)
         )
         rows = self.cur.fetchall()  # list of 1-tuples like [(1,), (5,), ...]
-
-        prop_list = TYPES.ProposalList()
-        prop_list.length(len(rows))
-        for idx, (pid,) in enumerate(rows):
-            prop_list[idx] = pid
-
+        prop_list = []
+        for pid, in rows:
+            self._logger.info(f"Found queued proposal {pid}")
+            prop_list.append(pid)
         return prop_list
 
     def cleanUp(self):
